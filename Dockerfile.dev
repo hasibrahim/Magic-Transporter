@@ -1,0 +1,27 @@
+# Development Dockerfile with hot reload support
+FROM node:22-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install nodemon globally for hot reload
+RUN npm install -g nodemon
+
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock ./
+
+# Install all dependencies (including devDependencies)
+RUN yarn install --frozen-lockfile
+
+# Copy source code (will be overridden by volume mount in docker-compose)
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Expose debugging port
+EXPOSE 9229
+
+# Start development server with hot reload
+CMD ["yarn", "dev"]

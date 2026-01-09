@@ -1,0 +1,9 @@
+node_modules
+.env.development.local
+.env
+dist
+.vscode
+src/logs
+logs
+.history
+.vercel

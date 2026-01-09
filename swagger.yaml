@@ -1,0 +1,698 @@
+openapi: 3.0.0
+info:
+  title: Magic Transporters Backend API
+  version: 1.0.0
+  description: API Documentation for Magic Transporters Backend
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+
+tags:
+  - name: Health
+    description: Health check API
+  - name: MagicMovers
+    description: Magic Movers API
+  - name: MagicItems
+    description: Magic Items API
+
+paths:
+  # Health Check
+  /:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      responses:
+        200:
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "API is running"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # Magic Movers
+  /magic-movers:
+    post:
+      tags:
+        - MagicMovers
+      summary: Create a new Magic Mover
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicMoverInput'
+            example:
+              name: "Magic Mover 1"
+              weightLimit: 100
+              completedMissions: 0
+      responses:
+        201:
+          description: Magic Mover created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 201
+                  message:
+                    type: string
+                    example: "Created successfully"
+                  data:
+                    $ref: '#/components/schemas/MagicMover'
+        400:
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 400
+                  message:
+                    type: string
+                    example: "Failed to create"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "An error occurred"
+
+  /magic-movers/most-missions-completed:
+    get:
+      tags:
+        - MagicMovers
+      summary: Get top performers by completed missions
+      description: Retrieve a leaderboard of Magic Movers ordered by completedMissions in descending order. Optionally filter by a specific item to see which movers have completed the most missions with that item.
+      parameters:
+        - name: itemId
+          in: query
+          required: false
+          description: Optional Magic Item ID to filter movers by missions completed with this specific item
+          schema:
+            type: string
+          example: "60d5ec49f1b2c72b8c8e4f1a"
+      responses:
+        200:
+          description: Top performers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 200
+                  message:
+                    type: string
+                    example: "Top performers retrieved successfully"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MagicMover'
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to retrieve top performers"
+
+  /magic-movers/{id}/load:
+    post:
+      tags:
+        - MagicMovers
+      summary: Load items onto a Magic Mover
+      description: Add items to a Magic Mover, validate weight limits, change state to loading, and create activity log entry. Cannot load items if the Magic Mover is currently on a mission.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Magic Mover ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoadItemsInput'
+            example:
+              itemIds: ["60d5ec49f1b2c72b8c8e4f1a", "60d5ec49f1b2c72b8c8e4f1b"]
+      responses:
+        200:
+          description: Items loaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 200
+                  message:
+                    type: string
+                    example: "Items loaded successfully"
+                  data:
+                    $ref: '#/components/schemas/MagicMover'
+        400:
+          description: Bad request - validation error, weight limit exceeded, or Magic Mover is on a mission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 400
+                  message:
+                    type: string
+                    example: "Cannot load items: Magic Mover is currently on a mission"
+        404:
+          description: Magic Mover or items not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 404
+                  message:
+                    type: string
+                    example: "Magic Mover not found"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to load items"
+  /magic-movers/{id}/unload:
+    post:
+      tags:
+        - MagicMovers
+      summary: Unload items from a Magic Mover
+      description: Remove all items from a Magic Mover, change state from loading to resting, and create activity log entry. The Magic Mover must be in loading state. Does NOT increment completed missions counter (no mission was completed).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Magic Mover ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: Items unloaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 200
+                  message:
+                    type: string
+                    example: "Items unloaded successfully"
+                  data:
+                    $ref: '#/components/schemas/MagicMover'
+        400:
+          description: Invalid state transition
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 400
+                  message:
+                    type: string
+                    example: "Invalid state transition: Cannot unload from resting to resting"
+        404:
+          description: Magic Mover not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 404
+                  message:
+                    type: string
+                    example: "Magic Mover not found"
+        409:
+          description: Concurrent modification detected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 409
+                  message:
+                    type: string
+                    example: "Concurrent modification detected. Please retry the operation."
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to unload items"
+
+
+  /magic-movers/{id}/start-mission:
+    post:
+      tags:
+        - MagicMovers
+      summary: Start a mission for a Magic Mover
+      description: Change Magic Mover state from loading to on-mission and create activity log entry. The Magic Mover must be in loading state to start a mission.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Magic Mover ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: Mission started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 200
+                  message:
+                    type: string
+                    example: "Mission started successfully"
+                  data:
+                    $ref: '#/components/schemas/MagicMover'
+        400:
+          description: Bad request - Magic Mover is not in loading state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 400
+                  message:
+                    type: string
+                    example: "Magic Mover must be in loading state to start a mission"
+        404:
+          description: Magic Mover not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 404
+                  message:
+                    type: string
+                    example: "Magic Mover not found"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to start mission"
+
+  /magic-movers/{id}/end-mission:
+    post:
+      tags:
+        - MagicMovers
+      summary: End a mission for a Magic Mover
+      description: Unload all items, change Magic Mover state back to resting, increment completed missions counter, and create activity log entry. The Magic Mover must be on mission to end a mission.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Magic Mover ID
+          schema:
+            type: string
+      responses:
+        200:
+          description: Mission ended successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 200
+                  message:
+                    type: string
+                    example: "Mission ended successfully"
+                  data:
+                    $ref: '#/components/schemas/MagicMover'
+        400:
+          description: Bad request - Magic Mover is not on mission
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 400
+                  message:
+                    type: string
+                    example: "Magic Mover must be on mission to end a mission"
+        404:
+          description: Magic Mover not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 404
+                  message:
+                    type: string
+                    example: "Magic Mover not found"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to end mission"
+
+  # Magic Items
+  /magic-items:
+    post:
+      tags:
+        - MagicItems
+      summary: Create a new Magic Item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MagicItemInput'
+            example:
+              name: "Magic Sword"
+              weight: 15
+      responses:
+        201:
+          description: Magic Item created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status:
+                    type: number
+                    example: 201
+                  message:
+                    type: string
+                    example: "Magic Item created successfully"
+                  data:
+                    $ref: '#/components/schemas/MagicItem'
+        400:
+          description: Bad request - validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 400
+                  message:
+                    type: string
+                    example: "Validation failed"
+        500:
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  status:
+                    type: number
+                    example: 500
+                  message:
+                    type: string
+                    example: "Failed to create Magic Item"
+
+components:
+  schemas:
+    MagicMoverInput:
+      type: object
+      required:
+        - weightLimit
+      properties:
+        name:
+          type: string
+          description: Name of the Magic Mover (optional)
+        weightLimit:
+          type: number
+          description: Maximum weight limit for the Magic Mover
+          minimum: 0
+        currentWeight:
+          type: number
+          description: Current weight being carried
+          minimum: 0
+          default: 0
+        state:
+          type: string
+          enum: [resting, loading, on-mission]
+          description: Current state of the Magic Mover
+          default: resting
+        items:
+          type: array
+          items:
+            type: string
+          description: Array of item IDs
+          default: []
+        completedMissions:
+          type: number
+          description: Number of completed missions
+          minimum: 0
+          default: 0
+
+    MagicMover:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId of the Magic Mover
+        name:
+          type: string
+          description: Name of the Magic Mover
+        weightLimit:
+          type: number
+          description: Maximum weight limit for the Magic Mover
+        currentWeight:
+          type: number
+          description: Current weight being carried
+        state:
+          type: string
+          enum: [resting, loading, on-mission]
+          description: Current state of the Magic Mover
+        items:
+          type: array
+          items:
+            type: string
+          description: Array of item IDs
+        completedMissions:
+          type: number
+          description: Number of completed missions
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of when the Magic Mover was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of when the Magic Mover was last updated
+
+    MagicItemInput:
+      type: object
+      required:
+        - name
+        - weight
+      properties:
+        name:
+          type: string
+          description: Name of the Magic Item
+        weight:
+          type: number
+          description: Weight of the Magic Item
+          minimum: 0
+
+    MagicItem:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId of the Magic Item
+        name:
+          type: string
+          description: Name of the Magic Item
+        weight:
+          type: number
+          description: Weight of the Magic Item
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of when the Magic Item was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of when the Magic Item was last updated
+
+    LoadItemsInput:
+      type: object
+      required:
+        - itemIds
+      properties:
+        itemIds:
+          type: array
+          items:
+            type: string
+          description: Array of Magic Item IDs to load onto the Magic Mover
+          minItems: 1
